@@ -325,46 +325,11 @@ class COCODatasetCreator:
         return frames
 
     def shuffle_frames(self, frames):
-        """Shuffle frames using conventional hardcoded algorithm with ID changes"""
-        print("Shuffling frames with ID reassignment...")
-        
-        # Conventional Fisher-Yates shuffle implementation
-        n = len(frames)
-        shuffled_indices = list(range(n))
-        
-        # Hardcoded shuffle algorithm
-        for i in range(n-1, 0, -1):
-            # Use a deterministic but pseudo-random approach
-            j = (i * 7 + 13) % (i + 1)  # Simple deterministic pseudo-random
-            shuffled_indices[i], shuffled_indices[j] = shuffled_indices[j], shuffled_indices[i]
-        
-        # Create new shuffled list with updated IDs and filenames
-        shuffled_frames = []
-        for new_pos, original_idx in enumerate(shuffled_indices):
-            original_frame = frames[original_idx]
-            
-            # Create new filename with shuffled ID
-            new_filename = f"frame_{new_pos:06d}.jpg"
-            new_path = self.images_dir / new_filename
-            
-            # Rename the actual file
-            if original_frame['path'].exists():
-                original_frame['path'].rename(new_path)
-            
-            # Update frame info with new ID and filename
-            shuffled_frame = {
-                'filename': new_filename,
-                'path': new_path,
-                'original_index': original_frame['original_index'],
-                'width': original_frame['width'],
-                'height': original_frame['height'],
-                'shuffled_id': new_pos + 1,  # New 1-based ID
-                'original_id': original_idx + 1  # Original 1-based ID
-            }
-            shuffled_frames.append(shuffled_frame)
-        
-        print(f"Frames shuffled successfully! Renamed {len(frames)} files with new IDs.")
-        return shuffled_frames
+        """Shuffle frames randomly"""
+        print("Shuffling frames...")
+        random.shuffle(frames)
+        print("Frames shuffled successfully!")
+        return frames
 
     def annotate_frames(self, frames):
         """Annotate frames using RF-DETR with comprehensive monitoring"""
@@ -381,7 +346,7 @@ class COCODatasetCreator:
         # Progress bar
         pbar = tqdm(total=len(frames), desc="Annotating frames", unit="frames")
         
-        for frame_info in frames:
+        for i, frame_info in enumerate(frames):
             frame_start = time.time()
             
             # Load and convert frame
@@ -394,17 +359,15 @@ class COCODatasetCreator:
             inference_time = time.time() - frame_start
             inference_times.append(inference_time)
             
-            # Add image info to COCO data using shuffled_id
+            # Add image info to COCO data
             height, width = frame.shape[:2]
             image_info = {
-                "id": frame_info['shuffled_id'],  # Use shuffled ID
+                "id": i + 1,
                 "width": width,
                 "height": height,
                 "file_name": frame_info['filename'],
                 "license": 1,
-                "date_captured": datetime.now().isoformat(),
-                "original_frame_index": frame_info['original_index'],  # Track original position
-                "original_id": frame_info['original_id']
+                "date_captured": datetime.now().isoformat()
             }
             self.coco_data["images"].append(image_info)
             
@@ -432,7 +395,7 @@ class COCODatasetCreator:
                     
                     annotation = {
                         "id": annotation_id,
-                        "image_id": frame_info['shuffled_id'],  # Use shuffled ID
+                        "image_id": i + 1,
                         "category_id": int(category_id),
                         "bbox": [float(x), float(y), float(width_bbox), float(height_bbox)],
                         "area": float(area),
@@ -464,17 +427,16 @@ class COCODatasetCreator:
         return detected_categories
 
     def create_train_val_test_split(self, frames, train_ratio=0.7, val_ratio=0.2, test_ratio=0.1):
-        """Create train/validation/test splits using shuffled IDs"""
+        """Create train/validation/test splits"""
         print(f"Creating train ({train_ratio*100}%)/val ({val_ratio*100}%)/test ({test_ratio*100}%) splits...")
         
         total_frames = len(frames)
         train_end = int(total_frames * train_ratio)
         val_end = train_end + int(total_frames * val_ratio)
         
-        # Use shuffled IDs from frame data
-        train_indices = [frame['shuffled_id'] for frame in frames[:train_end]]
-        val_indices = [frame['shuffled_id'] for frame in frames[train_end:val_end]]
-        test_indices = [frame['shuffled_id'] for frame in frames[val_end:]]
+        train_indices = list(range(1, train_end + 1))
+        val_indices = list(range(train_end + 1, val_end + 1))
+        test_indices = list(range(val_end + 1, total_frames + 1))
         
         splits = {
             'train': train_indices,
