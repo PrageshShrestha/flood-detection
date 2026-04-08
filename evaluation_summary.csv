@@ -1,0 +1,10 @@
+Metric,Value
+Total Images,138.0
+Total Ground Truth,495.0
+Total Detections,128.0
+True Positives,0.0
+False Positives,128.0
+False Negatives,495.0
+Precision,0.0
+Recall,0.0
+F1-Score,0.0
