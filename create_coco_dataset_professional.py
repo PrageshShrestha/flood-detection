@@ -117,7 +117,7 @@ class ResourceMonitor:
         
         return stats
 
-class COCODatasetCreator:
+class YOLODatasetCreator:
     def __init__(self, video_path, model_path, output_dir="prepared_dataset", fps=15, confidence_threshold=0.5):
         self.video_path = video_path
         self.model_path = model_path
@@ -140,10 +140,10 @@ class COCODatasetCreator:
         # Create output directories
         self.output_dir.mkdir(exist_ok=True)
         self.images_dir = self.output_dir / "images"
-        self.annotations_dir = self.output_dir / "annotations"
+        self.labels_dir = self.output_dir / "labels"
         self.plots_dir = self.output_dir / "analysis_plots"
         self.images_dir.mkdir(exist_ok=True)
-        self.annotations_dir.mkdir(exist_ok=True)
+        self.labels_dir.mkdir(exist_ok=True)
         self.plots_dir.mkdir(exist_ok=True)
         
         # Initialize model
@@ -157,8 +157,8 @@ class COCODatasetCreator:
         model_load_time = time.time() - model_load_start
         print(f"Model loaded successfully in {model_load_time:.2f} seconds!")
         
-        # COCO dataset structure
-        self.coco_data = {
+        # YOLO dataset structure
+        self.yolo_data = {
             "info": {
                 "description": "Dataset created from video using RF-DETR",
                 "version": "1.0",
@@ -166,99 +166,26 @@ class COCODatasetCreator:
                 "contributor": "RF-DETR Auto-Annotation",
                 "date_created": datetime.now().isoformat()
             },
-            "licenses": [],
             "images": [],
-            "annotations": [],
-            "categories": []
+            "annotations": []
         }
         
-        # Category mapping (RF-DETR uses COCO classes)
-        self.coco_categories = [
-            {"id": 1, "name": "person", "supercategory": "person"},
-            {"id": 2, "name": "bicycle", "supercategory": "vehicle"},
-            {"id": 3, "name": "car", "supercategory": "vehicle"},
-            {"id": 4, "name": "motorcycle", "supercategory": "vehicle"},
-            {"id": 5, "name": "airplane", "supercategory": "vehicle"},
-            {"id": 6, "name": "bus", "supercategory": "vehicle"},
-            {"id": 7, "name": "train", "supercategory": "vehicle"},
-            {"id": 8, "name": "truck", "supercategory": "vehicle"},
-            {"id": 9, "name": "boat", "supercategory": "vehicle"},
-            {"id": 10, "name": "traffic light", "supercategory": "outdoor"},
-            {"id": 11, "name": "fire hydrant", "supercategory": "outdoor"},
-            {"id": 13, "name": "stop sign", "supercategory": "outdoor"},
-            {"id": 14, "name": "parking meter", "supercategory": "outdoor"},
-            {"id": 15, "name": "bench", "supercategory": "outdoor"},
-            {"id": 16, "name": "bird", "supercategory": "animal"},
-            {"id": 17, "name": "cat", "supercategory": "animal"},
-            {"id": 18, "name": "dog", "supercategory": "animal"},
-            {"id": 19, "name": "horse", "supercategory": "animal"},
-            {"id": 20, "name": "sheep", "supercategory": "animal"},
-            {"id": 21, "name": "cow", "supercategory": "animal"},
-            {"id": 22, "name": "elephant", "supercategory": "animal"},
-            {"id": 23, "name": "bear", "supercategory": "animal"},
-            {"id": 24, "name": "zebra", "supercategory": "animal"},
-            {"id": 25, "name": "giraffe", "supercategory": "animal"},
-            {"id": 27, "name": "backpack", "supercategory": "accessory"},
-            {"id": 28, "name": "umbrella", "supercategory": "accessory"},
-            {"id": 31, "name": "handbag", "supercategory": "accessory"},
-            {"id": 32, "name": "tie", "supercategory": "accessory"},
-            {"id": 33, "name": "suitcase", "supercategory": "accessory"},
-            {"id": 34, "name": "frisbee", "supercategory": "sports"},
-            {"id": 35, "name": "skis", "supercategory": "sports"},
-            {"id": 36, "name": "snowboard", "supercategory": "sports"},
-            {"id": 37, "name": "sports ball", "supercategory": "sports"},
-            {"id": 38, "name": "kite", "supercategory": "sports"},
-            {"id": 39, "name": "baseball bat", "supercategory": "sports"},
-            {"id": 40, "name": "baseball glove", "supercategory": "sports"},
-            {"id": 41, "name": "skateboard", "supercategory": "sports"},
-            {"id": 42, "name": "surfboard", "supercategory": "sports"},
-            {"id": 43, "name": "tennis racket", "supercategory": "sports"},
-            {"id": 44, "name": "bottle", "supercategory": "kitchen"},
-            {"id": 46, "name": "wine glass", "supercategory": "kitchen"},
-            {"id": 47, "name": "cup", "supercategory": "kitchen"},
-            {"id": 48, "name": "fork", "supercategory": "kitchen"},
-            {"id": 49, "name": "knife", "supercategory": "kitchen"},
-            {"id": 50, "name": "spoon", "supercategory": "kitchen"},
-            {"id": 51, "name": "bowl", "supercategory": "kitchen"},
-            {"id": 52, "name": "banana", "supercategory": "food"},
-            {"id": 53, "name": "apple", "supercategory": "food"},
-            {"id": 54, "name": "sandwich", "supercategory": "food"},
-            {"id": 55, "name": "orange", "supercategory": "food"},
-            {"id": 56, "name": "broccoli", "supercategory": "food"},
-            {"id": 57, "name": "carrot", "supercategory": "food"},
-            {"id": 58, "name": "hot dog", "supercategory": "food"},
-            {"id": 59, "name": "pizza", "supercategory": "food"},
-            {"id": 60, "name": "donut", "supercategory": "food"},
-            {"id": 61, "name": "cake", "supercategory": "food"},
-            {"id": 62, "name": "chair", "supercategory": "furniture"},
-            {"id": 63, "name": "couch", "supercategory": "furniture"},
-            {"id": 64, "name": "potted plant", "supercategory": "furniture"},
-            {"id": 65, "name": "bed", "supercategory": "furniture"},
-            {"id": 67, "name": "dining table", "supercategory": "furniture"},
-            {"id": 70, "name": "toilet", "supercategory": "furniture"},
-            {"id": 72, "name": "tv", "supercategory": "electronic"},
-            {"id": 73, "name": "laptop", "supercategory": "electronic"},
-            {"id": 74, "name": "mouse", "supercategory": "electronic"},
-            {"id": 75, "name": "remote", "supercategory": "electronic"},
-            {"id": 76, "name": "keyboard", "supercategory": "electronic"},
-            {"id": 77, "name": "cell phone", "supercategory": "electronic"},
-            {"id": 78, "name": "microwave", "supercategory": "electronic"},
-            {"id": 79, "name": "oven", "supercategory": "electronic"},
-            {"id": 80, "name": "toaster", "supercategory": "electronic"},
-            {"id": 81, "name": "sink", "supercategory": "electronic"},
-            {"id": 82, "name": "refrigerator", "supercategory": "electronic"},
-            {"id": 84, "name": "book", "supercategory": "furniture"},
-            {"id": 85, "name": "clock", "supercategory": "furniture"},
-            {"id": 86, "name": "vase", "supercategory": "furniture"},
-            {"id": 87, "name": "scissors", "supercategory": "furniture"},
-            {"id": 88, "name": "teddy bear", "supercategory": "furniture"},
-            {"id": 89, "name": "hair drier", "supercategory": "furniture"},
-            {"id": 90, "name": "toothbrush", "supercategory": "furniture"}
+        # YOLO class names (RF-DETR uses COCO classes)
+        self.yolo_classes = [
+            "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light",
+            "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow",
+            "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee",
+            "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard",
+            "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
+            "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch",
+            "potted plant", "bed", "dining table", "toilet", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone",
+            "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear",
+            "hair drier", "toothbrush"
         ]
-        self.coco_data["categories"] = self.coco_categories
         
-        # Category name mapping
-        self.id_to_name = {cat['id']: cat['name'] for cat in self.coco_categories}
+        # Category mappings
+        self.id_to_name = {i: name for i, name in enumerate(self.yolo_classes)}
+        self.name_to_id = {name: i for i, name in enumerate(self.yolo_classes)}
 
     def extract_frames(self):
         """Extract frames from video at specified FPS with resource monitoring"""
@@ -332,16 +259,16 @@ class COCODatasetCreator:
         return frames
 
     def annotate_frames(self, frames):
-        """Annotate frames using RF-DETR with comprehensive monitoring"""
+        """Annotate frames using RF-DETR and create YOLO format annotations"""
         print("Annotating frames with RF-DETR...")
         
         # Start monitoring
         self.resource_monitor.start_monitoring()
         annotation_start = time.time()
         
-        annotation_id = 1
         detected_categories = set()
         inference_times = []
+        total_annotations = 0
         
         # Progress bar
         pbar = tqdm(total=len(frames), desc="Annotating frames", unit="frames")
@@ -359,52 +286,72 @@ class COCODatasetCreator:
             inference_time = time.time() - frame_start
             inference_times.append(inference_time)
             
-            # Add image info to COCO data
+            # Get image dimensions for YOLO format
             height, width = frame.shape[:2]
+            
+            # Add image info to YOLO data
             image_info = {
                 "id": i + 1,
                 "width": width,
                 "height": height,
                 "file_name": frame_info['filename'],
-                "license": 1,
-                "date_captured": datetime.now().isoformat()
+                "path": str(frame_info['path'])
             }
-            self.coco_data["images"].append(image_info)
+            self.yolo_data["images"].append(image_info)
             
-            # Process detections
+            # Create YOLO annotation file
+            label_filename = frame_info['filename'].replace('.jpg', '.txt')
+            label_path = self.labels_dir / label_filename
+            
+            # Process detections and create YOLO format annotations
+            frame_annotations = []
             frame_detections = len(detections)
             self.metrics['detection_stats']['detections_per_frame'].append(frame_detections)
             
-            # Add annotations
             for j in range(len(detections)):
                 if detections.confidence[j] >= self.confidence_threshold:
                     bbox = detections.xyxy[j]  # [x1, y1, x2, y2]
-                    category_id = detections.class_id[j] + 1  # Convert to 1-based indexing
+                    category_id = int(detections.class_id[j]) - 2  # RF-DETR class ID
+                    print(category_id)
                     confidence = detections.confidence[j]
                     
-                    # Convert to COCO bbox format [x, y, width, height]
-                    x, y, x2, y2 = bbox
-                    width_bbox = x2 - x
-                    height_bbox = y2 - y
-                    area = width_bbox * height_bbox
+                    # Convert to YOLO format [class_id, x_center, y_center, width, height] (normalized)
+                    x1, y1, x2, y2 = bbox
+                    bbox_width = x2 - x1
+                    bbox_height = y2 - y1
+                    
+                    # Normalize coordinates
+                    x_center = (x1 + x2) / 2.0 / width
+                    y_center = (y1 + y2) / 2.0 / height
+                    norm_width = bbox_width / width
+                    norm_height = bbox_height / height
+                    
+                    # YOLO format: class_id x_center y_center width height
+                    yolo_annotation = f"{category_id} {x_center:.6f} {y_center:.6f} {norm_width:.6f} {norm_height:.6f}"
+                    frame_annotations.append(yolo_annotation)
                     
                     # Collect metrics
+                    area = bbox_width * bbox_height
                     self.metrics['category_counts'][category_id] += 1
                     self.metrics['bbox_sizes'].append(area)
                     self.metrics['confidence_scores'].append(confidence)
                     
-                    annotation = {
-                        "id": annotation_id,
+                    # Store annotation data for analysis
+                    annotation_data = {
                         "image_id": i + 1,
-                        "category_id": int(category_id),
-                        "bbox": [float(x), float(y), float(width_bbox), float(height_bbox)],
+                        "category_id": category_id,
+                        "bbox": [float(x1), float(y1), float(bbox_width), float(bbox_height)],
                         "area": float(area),
-                        "iscrowd": 0,
-                        "confidence": float(confidence)
+                        "confidence": float(confidence),
+                        "yolo_format": [category_id, x_center, y_center, norm_width, norm_height]
                     }
-                    self.coco_data["annotations"].append(annotation)
-                    annotation_id += 1
-                    detected_categories.add(int(category_id))
+                    self.yolo_data["annotations"].append(annotation_data)
+                    total_annotations += 1
+                    detected_categories.add(category_id)
+            
+            # Write YOLO annotation file
+            with open(label_path, 'w') as f:
+                f.write('\n'.join(frame_annotations))
             
             pbar.update(1)
         
@@ -415,14 +362,14 @@ class COCODatasetCreator:
         self.metrics['annotation_time'] = time.time() - annotation_start
         
         print(f"\nAnnotation Statistics:")
-        print(f"   • Total annotations: {len(self.coco_data['annotations'])}")
-        print(f"   • Unique categories detected: {len(detected_categories)}")
-        print(f"   • Annotation time: {self.metrics['annotation_time']:.2f} seconds")
-        print(f"   • Average annotation speed: {len(frames)/self.metrics['annotation_time']:.2f} FPS")
-        print(f"   • Average inference time per frame: {np.mean(inference_times):.3f} seconds")
-        print(f"   • CPU usage during annotation: {annotation_stats.get('cpu', {}).get('mean', 0):.1f}%")
-        print(f"   • Memory usage during annotation: {annotation_stats.get('memory', {}).get('mean', 0):.1f}%")
-        print(f"   • Average detections per frame: {np.mean(self.metrics['detection_stats']['detections_per_frame']):.1f}")
+        print(f"   Total annotations: {total_annotations}")
+        print(f"   Unique categories detected: {len(detected_categories)}")
+        print(f"   Annotation time: {self.metrics['annotation_time']:.2f} seconds")
+        print(f"   Average annotation speed: {len(frames)/self.metrics['annotation_time']:.2f} FPS")
+        print(f"   Average inference time per frame: {np.mean(inference_times):.3f} seconds")
+        print(f"   CPU usage during annotation: {annotation_stats.get('cpu', {}).get('mean', 0):.1f}%")
+        print(f"   Memory usage during annotation: {annotation_stats.get('memory', {}).get('mean', 0):.1f}%")
+        print(f"   Average detections per frame: {np.mean(self.metrics['detection_stats']['detections_per_frame']):.1f}")
         
         return detected_categories
 
@@ -450,75 +397,112 @@ class COCODatasetCreator:
         
         return splits
 
-    def save_coco_annotations(self, splits):
-        """Save COCO annotations for each split"""
-        print("Saving COCO annotations...")
+    def save_yolo_annotations(self, splits):
+        """Organize YOLO annotations and images for train/val/test splits"""
+        print("Organizing YOLO dataset for train/val/test splits...")
         
+        # Create subdirectories for each split
+        for split_name in ['train', 'val', 'test']:
+            split_images_dir = self.output_dir / split_name / "images"
+            split_labels_dir = self.output_dir / split_name / "labels"
+            split_images_dir.mkdir(parents=True, exist_ok=True)
+            split_labels_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Move files to appropriate split directories
         for split_name, image_ids in splits.items():
-            split_data = {
-                "info": self.coco_data["info"],
-                "licenses": self.coco_data["licenses"],
-                "categories": self.coco_data["categories"],
-                "images": [img for img in self.coco_data["images"] if img["id"] in image_ids],
-                "annotations": [ann for ann in self.coco_data["annotations"] if ann["image_id"] in image_ids]
-            }
+            split_images_dir = self.output_dir / split_name / "images"
+            split_labels_dir = self.output_dir / split_name / "labels"
             
-            annotation_path = self.annotations_dir / f"{split_name}.json"
-            with open(annotation_path, 'w') as f:
-                json.dump(split_data, f, indent=2)
+            # Get images for this split
+            split_images = [img for img in self.yolo_data["images"] if img["id"] in image_ids]
             
-            print(f"   • {split_name}: {len(split_data['images'])} images, {len(split_data['annotations'])} annotations")
+            moved_count = 0
+            for img_info in split_images:
+                # Source paths
+                src_image_path = Path(img_info["path"])
+                src_label_path = self.labels_dir / img_info["file_name"].replace('.jpg', '.txt')
+                
+                # Destination paths
+                dst_image_path = split_images_dir / img_info["file_name"]
+                dst_label_path = split_labels_dir / img_info["file_name"].replace('.jpg', '.txt')
+                
+                # Move files if they exist
+                if src_image_path.exists():
+                    src_image_path.rename(dst_image_path)
+                    moved_count += 1
+                
+                if src_label_path.exists():
+                    src_label_path.rename(dst_label_path)
+            
+            print(f"   {split_name}: {moved_count} images moved to {split_name}/")
+        
+        # Remove empty original directories if they exist
+        try:
+            if self.images_dir.exists() and not any(self.images_dir.iterdir()):
+                self.images_dir.rmdir()
+            if self.labels_dir.exists() and not any(self.labels_dir.iterdir()):
+                self.labels_dir.rmdir()
+        except:
+            pass
 
-    def create_dataset_yaml(self, splits):
-        """Create dataset configuration YAML"""
-        print("Creating dataset configuration YAML...")
+    def create_yolo_dataset_yaml(self, splits):
+        """Create YOLO dataset configuration YAML"""
+        print("Creating YOLO dataset configuration YAML...")
         
-        # Get unique categories from annotations
-        category_names = {cat['id']: cat['name'] for cat in self.coco_data['categories']}
+        # Create YOLO format configuration
+        yolo_config = {
+            'train': str(self.output_dir / 'train' / 'images'),
+            'val': str(self.output_dir / 'val' / 'images'),
+            'test': str(self.output_dir / 'test' / 'images'),
+            'nc': len(self.yolo_classes),  # number of classes
+            'names': self.yolo_classes  # class names
+        }
         
-        yaml_config = {
+        # Save YOLO dataset.yaml
+        yaml_path = self.output_dir / 'dataset.yaml'
+        with open(yaml_path, 'w') as f:
+            yaml.dump(yolo_config, f, default_flow_style=False, indent=2)
+        
+        # Also save a metadata file with dataset information
+        metadata_config = {
             'dataset_info': {
-                'name': 'Video-derived COCO Dataset',
+                'name': 'Video-derived YOLO Dataset',
                 'description': 'Dataset created from video using RF-DETR auto-annotation',
-                'total_images': len(self.coco_data['images']),
-                'total_annotations': len(self.coco_data['annotations']),
-                'categories': len(self.coco_data['categories']),
+                'total_images': len(self.yolo_data['images']),
+                'total_annotations': len(self.yolo_data['annotations']),
+                'categories': len(self.yolo_classes),
                 'created_date': datetime.now().isoformat()
-            },
-            'paths': {
-                'root': str(self.output_dir),
-                'images': str(self.images_dir),
-                'annotations': str(self.annotations_dir)
             },
             'splits': {
                 'train': {
-                    'images': len([img for img in self.coco_data['images'] if img['id'] in splits['train']]),
-                    'annotations': len([ann for ann in self.coco_data['annotations'] if ann['image_id'] in splits['train']]),
-                    'annotation_file': str(self.annotations_dir / 'train.json')
+                    'images': len([img for img in self.yolo_data['images'] if img['id'] in splits['train']]),
+                    'annotations': len([ann for ann in self.yolo_data['annotations'] if ann['image_id'] in splits['train']])
                 },
                 'val': {
-                    'images': len([img for img in self.coco_data['images'] if img['id'] in splits['val']]),
-                    'annotations': len([ann for ann in self.coco_data['annotations'] if ann['image_id'] in splits['val']]),
-                    'annotation_file': str(self.annotations_dir / 'val.json')
+                    'images': len([img for img in self.yolo_data['images'] if img['id'] in splits['val']]),
+                    'annotations': len([ann for ann in self.yolo_data['annotations'] if ann['image_id'] in splits['val']])
                 },
                 'test': {
-                    'images': len([img for img in self.coco_data['images'] if img['id'] in splits['test']]),
-                    'annotations': len([ann for ann in self.coco_data['annotations'] if ann['image_id'] in splits['test']]),
-                    'annotation_file': str(self.annotations_dir / 'test.json')
+                    'images': len([img for img in self.yolo_data['images'] if img['id'] in splits['test']]),
+                    'annotations': len([ann for ann in self.yolo_data['annotations'] if ann['image_id'] in splits['test']])
                 }
             },
-            'categories': category_names,
+            'categories': {i: name for i, name in enumerate(self.yolo_classes)},
             'training_config': {
-                'input_format': 'coco',
-                'target_format': 'coco',
+                'input_format': 'yolo',
+                'target_format': 'yolo',
                 'confidence_threshold': self.confidence_threshold,
                 'extraction_fps': self.fps
             }
         }
         
-        yaml_path = self.output_dir / 'dataset_config.yaml'
-        with open(yaml_path, 'w') as f:
-            yaml.dump(yaml_config, f, default_flow_style=False, indent=2)
+        # Save metadata
+        metadata_path = self.output_dir / 'dataset_metadata.yaml'
+        with open(metadata_path, 'w') as f:
+            yaml.dump(metadata_config, f, default_flow_style=False, indent=2)
+        
+        print(f"   YOLO dataset configuration saved to: {yaml_path}")
+        print(f"   Dataset metadata saved to: {metadata_path}")
         
         print(f"   • Dataset configuration saved to: {yaml_path}")
 
@@ -612,10 +596,10 @@ class COCODatasetCreator:
         
         report = {
             "dataset_overview": {
-                "total_images": len(self.coco_data['images']),
-                "total_annotations": len(self.coco_data['annotations']),
+                "total_images": len(self.yolo_data['images']),
+                "total_annotations": len(self.yolo_data['annotations']),
                 "unique_categories": len(self.metrics['category_counts']),
-                "avg_annotations_per_image": len(self.coco_data['annotations']) / len(self.coco_data['images']) if self.coco_data['images'] else 0,
+                "avg_annotations_per_image": len(self.yolo_data['annotations']) / len(self.yolo_data['images']) if self.yolo_data['images'] else 0,
                 "extraction_fps": self.fps,
                 "confidence_threshold": self.confidence_threshold
             },
@@ -623,8 +607,8 @@ class COCODatasetCreator:
                 "extraction_time_seconds": self.metrics['extraction_time'],
                 "annotation_time_seconds": self.metrics['annotation_time'],
                 "total_processing_time_seconds": self.metrics['extraction_time'] + self.metrics['annotation_time'],
-                "extraction_speed_fps": len(self.coco_data['images']) / self.metrics['extraction_time'] if self.metrics['extraction_time'] > 0 else 0,
-                "annotation_speed_fps": len(self.coco_data['images']) / self.metrics['annotation_time'] if self.metrics['annotation_time'] > 0 else 0
+                "extraction_speed_fps": len(self.yolo_data['images']) / self.metrics['extraction_time'] if self.metrics['extraction_time'] > 0 else 0,
+                "annotation_speed_fps": len(self.yolo_data['images']) / self.metrics['annotation_time'] if self.metrics['annotation_time'] > 0 else 0
             },
             "detection_statistics": {
                 "avg_detections_per_frame": np.mean(self.metrics['detection_stats']['detections_per_frame']) if self.metrics['detection_stats']['detections_per_frame'] else 0,
@@ -641,7 +625,7 @@ class COCODatasetCreator:
                         "category_id": cat_id,
                         "category_name": self.id_to_name.get(cat_id, f"Class_{cat_id}"),
                         "count": count,
-                        "percentage": (count / len(self.coco_data['annotations'])) * 100
+                        "percentage": (count / len(self.yolo_data['annotations'])) * 100
                     }
                     for cat_id, count in self.metrics['category_counts'].most_common(10)
                 ],
@@ -657,8 +641,8 @@ class COCODatasetCreator:
                     "python_version": f"{psutil.sys.version_info.major}.{psutil.sys.version_info.minor}.{psutil.sys.version_info.micro}"
                 },
                 "processing_efficiency": {
-                    "frames_per_second_overall": len(self.coco_data['images']) / (self.metrics['extraction_time'] + self.metrics['annotation_time']),
-                    "memory_efficiency_mb_per_frame": (psutil.virtual_memory().used / (1024**2)) / len(self.coco_data['images']) if self.coco_data['images'] else 0
+                    "frames_per_second_overall": len(self.yolo_data['images']) / (self.metrics['extraction_time'] + self.metrics['annotation_time']),
+                    "memory_efficiency_mb_per_frame": (psutil.virtual_memory().used / (1024**2)) / len(self.yolo_data['images']) if self.yolo_data['images'] else 0
                 }
             }
         }
@@ -737,11 +721,11 @@ class COCODatasetCreator:
         # Step 4: Create train/val/test splits
         splits = self.create_train_val_test_split(shuffled_frames)
         
-        # Step 5: Save COCO annotations
-        self.save_coco_annotations(splits)
+        # Step 5: Save YOLO annotations and organize splits
+        self.save_yolo_annotations(splits)
         
-        # Step 6: Create dataset YAML
-        self.create_dataset_yaml(splits)
+        # Step 6: Create YOLO dataset YAML
+        self.create_yolo_dataset_yaml(splits)
         
         # Step 7: Generate EDA plots
         self.generate_eda_plots()
@@ -754,8 +738,8 @@ class COCODatasetCreator:
         print(f"\nDataset creation completed successfully!")
         print(f"Output directory: {self.output_dir}")
         print(f"Total processing time: {self.metrics['total_time']:.2f} seconds")
-        print(f"Total images: {len(self.coco_data['images']):,}")
-        print(f"Total annotations: {len(self.coco_data['annotations']):,}")
+        print(f"Total images: {len(self.yolo_data['images']):,}")
+        print(f"Total annotations: {len(self.yolo_data['annotations']):,}")
         print(f"Categories detected: {len(detected_categories)}")
         print(f"EDA report and plots generated!")
         
@@ -770,7 +754,7 @@ if __name__ == "__main__":
     confidence_threshold = 0.5
     
     # Create dataset with comprehensive analysis
-    creator = COCODatasetCreator(
+    creator = YOLODatasetCreator(
         video_path=video_path,
         model_path=model_path,
         output_dir=output_dir,
